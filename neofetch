@@ -3917,25 +3917,43 @@ get_local_ip() {
     esac
 }
 
+#show public ipv4 and ipv6 for dual stack setup
 get_public_ip() {
+    ipv4=""
+    ipv6=""
+
+    # Attempt to get IPv4 address
     if [[ ! -n "$public_ip_host" ]] && type -p dig >/dev/null; then
-        public_ip="$(dig +time=1 +tries=1 +short myip.opendns.com @resolver1.opendns.com)"
-       [[ "$public_ip" =~ ^\; ]] && unset public_ip
+        ipv4="$(dig +time=1 +tries=1 +short A myip.opendns.com @resolver1.opendns.com)"
+        [[ "$ipv4" =~ ^\; ]] && unset ipv4
     fi
 
-    if [[ ! -n "$public_ip_host" ]] && [[ -z "$public_ip" ]] && type -p drill >/dev/null; then
-        public_ip="$(drill myip.opendns.com @resolver1.opendns.com | \
-                     awk '/^myip\./ && $3 == "IN" {print $5}')"
+    if [[ -z "$ipv4" ]] && type -p curl >/dev/null; then
+        ipv4="$(curl -4 -L --max-time "$public_ip_timeout" -w '\n' "$public_ip_host")"
     fi
 
-    if [[ -z "$public_ip" ]] && type -p curl >/dev/null; then
-        public_ip="$(curl -L --max-time "$public_ip_timeout" -w '\n' "$public_ip_host")"
+    if [[ -z "$ipv4" ]] && type -p wget >/dev/null; then
+        ipv4="$(wget -4 -T "$public_ip_timeout" -qO- "$public_ip_host")"
     fi
 
-    if [[ -z "$public_ip" ]] && type -p wget >/dev/null; then
-        public_ip="$(wget -T "$public_ip_timeout" -qO- "$public_ip_host")"
+    # Attempt to get IPv6 address
+    if [[ ! -n "$public_ip_host" ]] && type -p dig >/dev/null; then
+        ipv6="$(dig +time=1 +tries=1 +short AAAA myip.opendns.com @resolver1.opendns.com)"
+        [[ "$ipv6" =~ ^\; ]] && unset ipv6
     fi
+
+    if [[ -z "$ipv6" ]] && type -p curl >/dev/null; then
+        ipv6="$(curl -6 -L --max-time "$public_ip_timeout" -w '\n' "$public_ip_host")"
+    fi
+
+    if [[ -z "$ipv6" ]] && type -p wget >/dev/null; then
+        ipv6="$(wget -6 -T "$public_ip_timeout" -qO- "$public_ip_host")"
+    fi
+
+    # Combine IPv4 and IPv6 addresses for output
+    public_ip="IPv4: $ipv4, IPv6: $ipv6"
 }
+
 
 get_users() {
     users="$(who | awk '!seen[$1]++ {printf $1 ", "}')"
