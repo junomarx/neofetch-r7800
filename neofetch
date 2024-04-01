@@ -2224,6 +2224,20 @@ get_cpu() {
                 }
             done
 
+            # temperature reading for r7800
+            temp_file1="/sys/class/ieee80211/phy0/device/hwmon/hwmon0/temp1_input"
+            temp_file2="/sys/class/ieee80211/phy1/device/hwmon/hwmon1/temp1_input"
+
+            # Read temperatures
+            if [[ -f "$temp_file1" && -f "$temp_file2" ]]; then
+                temp1="$(< "$temp_file1")"
+                temp2="$(< "$temp_file2")"
+
+                # Aggregate the temperatures (average)
+                deg="$(echo "scale=2;($temp1+$temp2)/2" | bc)"
+                deg="$(echo "$deg/100" | bc)" # adjustment to read centidegrees C in degrees C
+            fi
+
             # Get CPU speed.
             if [[ -d "$speed_dir" ]]; then
                 # Fallback to bios_limit if $speed_type fails.
